@@ -1,4 +1,8 @@
 {
-  "key-name":      "<name of your EC2 keypair>",
-  "key-pair-file": "/path/to/my/ec2/keypair/pem/file",
+  "key-name":       "my-ssh-key-name",
+  "key-pair-file":  "/path/to/my/ec2/keypair/pem/file",
+  "log-uri":        "s3n://my-log-bucket/elasticmapreduce/",
+  "subnet":         "subnet-00123abc",
+  "sg-slave":       "sg-1234abcd",
+  "sg-master":      "sg-456701ef"
 }

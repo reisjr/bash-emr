@@ -16,8 +16,12 @@ fi
 # EMR helpers
 export EMR_SSH_KEY=`cat $EMR_DEFAULTS_JSON | grep '"key-pair-file"' | cut -d':' -f2 | sed -n 's|.*"\([^"]*\)".*|\1|p'`
 export EMR_SSH_KEY_NAME=`cat $EMR_DEFAULTS_JSON | grep '"key-name"' | cut -d':' -f2 | sed -n 's|.*"\([^"]*\)".*|\1|p'`
-
 export EMR_SSH_OPTS="-i "$EMR_SSH_KEY" -o StrictHostKeyChecking=no -o ServerAliveInterval=30"
+export EMR_LOG_URI=`cat $EMR_DEFAULTS_JSON | grep '"log-uri"' | cut -d':' -f2- | sed -n 's|.*"\([^"]*\)".*|\1|p'`
+export EMR_SG_MASTER=`cat $EMR_DEFAULTS_JSON | grep '"sg-master"' | cut -d':' -f2 | sed -n 's|.*"\([^"]*\)".*|\1|p'`
+export EMR_SG_SLAVE=`cat $EMR_DEFAULTS_JSON | grep '"sg-slave"' | cut -d':' -f2 | sed -n 's|.*"\([^"]*\)".*|\1|p'`
+export EMR_SUBNET_ID=`cat $EMR_DEFAULTS_JSON | grep '"subnet"' | cut -d':' -f2 | sed -n 's|.*"\([^"]*\)".*|\1|p'`
+
 
 function __emr_completion() {
   [ -z "$__EMR_JOBFLOW_LIST" ] && return 0
@@ -33,6 +37,14 @@ function emr {
   [ -n "$ID" ] && export EMR_FLOW_ID="$ID"
 
   echo "$RESULT"
+}
+
+function emrhelp {
+    echo "emractive - list active clusters"
+    echo "emrlist - list clusters"
+    echo "emrcreate - create a new cluster based on a preset"
+    echo "emrlogin <cluster-id> - login in a specific cluster"
+    echo "emrterminate <cluster-id> - termiante a cluster"
 }
 
 function emrprofile {
@@ -182,6 +194,12 @@ function emractive {
 }
 
 function emrstat {
+
+if [ -z "$1" ]; then
+    echo "Must provide a cluster-id!"
+    return
+fi
+
  FLOW_ID=`flowid $1`
  emr describe-cluster --cluster-id $FLOW_ID  --query [Cluster.Name,Cluster.MasterPublicDnsName,Cluster.Status.State,Cluster.Status.StateChangeReason.Message]
 }
@@ -222,4 +240,32 @@ function emrconf {
   fi
   HOST=`emrhost $HH`
   scp $EMR_SSH_OPTS "hadoop@$HOST:conf/*-site.xml" $CONFPATH/
+}
+
+function emrcreate {
+    if [ -z "$1" ]; then
+        echo "Must provide a name for this cluster! Example: myname-dev-cluster"
+        return
+    fi
+
+    echo "Creating new cluster..."
+    echo " KEY NAME: $EMR_SSH_KEY_NAME"
+    echo "  LOG URI: $EMR_LOG_URI"
+    echo "   SUBNET: $EMR_SUBNET_ID"
+    echo "SG MASTER: $EMR_SG_SLAVE"
+    echo " SG SLAVE: $EMR_SG_MASTER"
+
+    aws emr create-cluster --applications Name=Hadoop Name=Hive Name=Pig Name=Hue Name=Spark \
+    --tags Env="dev" \
+    --ec2-attributes "{\"KeyName\":\"$EMR_SSH_KEY_NAME\",\"InstanceProfile\":\"EMR_EC2_DefaultRole\",\"SubnetId\":\"$EMR_SUBNET_ID\",\"EmrManagedSlaveSecurityGroup\":\"$EMR_SG_SLAVE\",\"EmrManagedMasterSecurityGroup\":\"$EMR_SG_MASTER\"}" \
+    --release-label emr-5.13.0 \
+    --instance-groups '[{"InstanceCount":2,"BidPrice":"0.08","EbsConfiguration":{"EbsBlockDeviceConfigs":[{"VolumeSpecification":{"SizeInGB":32,"VolumeType":"gp2"},"VolumesPerInstance":1}]},"InstanceGroupType":"TASK","InstanceType":"m4.large","Name":"Task - 3"},{"InstanceCount":1,"EbsConfiguration":{"EbsBlockDeviceConfigs":[{"VolumeSpecification":{"SizeInGB":32,"VolumeType":"gp2"},"VolumesPerInstance":1}]},"InstanceGroupType":"MASTER","InstanceType":"m4.large","Name":"Master - 1"},{"InstanceCount":8,"EbsConfiguration":{"EbsBlockDeviceConfigs":[{"VolumeSpecification":{"SizeInGB":32,"VolumeType":"gp2"},"VolumesPerInstance":1}]},"InstanceGroupType":"CORE","InstanceType":"m4.large","Name":"Core - 2"}]' \
+    --configurations '[{"Classification":"hive-site","Properties":{"hive.metastore.client.factory.class":"com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"},"Configurations":[]},{"Classification":"spark-hive-site","Properties":{"hive.metastore.client.factory.class":"com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"},"Configurations":[]}]' \
+    --log-uri $EMR_LOG_URI \
+    --auto-scaling-role EMR_AutoScaling_DefaultRole \
+    --ebs-root-volume-size 10 \
+    --service-role EMR_DefaultRole \
+    --enable-debugging \
+    --name "$1" \
+    --region us-east-1
 }

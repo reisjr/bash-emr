@@ -61,6 +61,18 @@ This is shorthand for calling from the shell.
 
     emr <some args>
 
+### emrhelp
+List the main commands available on bash-emr.
+
+    emrhelp
+
+### emrcreate
+
+Will start a dev cluster using the configuration on the emr_defaults.json file. If the file
+is not correctly defined, the cluster start will fail.
+    
+    emrcreate <cluster-name>
+
 ### emrset
 When you start a flow on EMR, you will be given a flow id.
 Use __emrset__ to set the flow id for use by many of the other commands

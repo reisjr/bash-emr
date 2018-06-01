@@ -1,0 +1,58 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ReadOnlyAccess",
+            "Effect": "Allow",
+            "Action": [
+                "elasticmapreduce:Describe*",
+                "elasticmapreduce:List*",
+                "elasticmapreduce:ViewEventsFromAllClustersInConsole",
+                "s3:GetObject",
+                "s3:ListAllMyBuckets",
+                "s3:ListBucket",
+                "sdb:Select",
+                "cloudwatch:GetMetricStatistics"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ManageDevAndTestCluster",
+            "Effect": "Allow",
+            "Action": [
+                "elasticmapreduce:DescribeCluster",
+                "elasticmapreduce:ListSteps",
+                "elasticmapreduce:TerminateJobFlows",
+                "elasticmapreduce:SetTerminationProtection",
+                "elasticmapreduce:ListInstances",
+                "elasticmapreduce:ListInstanceGroups",
+                "elasticmapreduce:ListBootstrapActions",
+                "elasticmapreduce:DescribeStep"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "elasticmapreduce:ResourceTag/Env": "dev"
+                }
+            }
+        },
+        {
+            "Sid": "CreateDevAndTestCluster",
+            "Action": [
+                "elasticmapreduce:RunJobFlow",
+                "iam:PassRole"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "elasticmapreduce:RequestTag/Env": "dev"
+                }
+            },
+            "Effect": "Allow",
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
+}
